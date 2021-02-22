@@ -12,8 +12,7 @@ import phantom.app as phantom
 from phantom.base_connector import BaseConnector
 from phantom.action_result import ActionResult
 
-# Usage of the consts file is recommended
-# from clearpasspolicymanager_consts import *
+from clearpasspolicymanager_consts import *
 import requests
 import json
 from bs4 import BeautifulSoup
@@ -34,10 +33,53 @@ class ClearpassPolicyManagerConnector(BaseConnector):
 
         self._state = None
 
-        # Variable to hold a base_url in case the app makes REST calls
-        # Do note that the app json defines the asset config, so please
-        # modify this as you deem fit.
         self._base_url = None
+        self._client_id = None
+        self._client_secret = None
+        self._access_token = None
+
+    def initialize(self):
+        """ Automatically called by the BaseConnector before the calls to the handle_action function"""
+
+        self._state = self.load_state()
+
+        # get the asset config
+        config = self.get_config()
+
+        self._base_url = config[CCPM_JSON_BASE_URL]
+        self._client_id = config[CPPM_JSON_CLIENT_ID]
+        self._client_secret = config[CPPM_JSON_CLIENT_SECRET]
+
+
+        return phantom.APP_SUCCESS
+
+    def _get_token(self, action_result, from_action=False):
+        # Retrieves a new Bearer token
+        
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": self._client_id,
+            "client_secret": self._client_secret
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+        url = "{}{}".format(self._base_url, CPPM_OAUTH_TOKEN_ENDPOINT)
+
+        ret_val, resp_json = self._make_rest_call_oauth2(url, action_result, headers=headers, data=payload, method='post')
+
+        if phantom.is_fail(ret_val):
+            self._state.pop(CCPM_OAUTH_TOKEN, {})
+            return action_result.get_status()
+
+        self._state[CCPM_OAUTH_TOKEN] = resp_json
+        self._access_token = resp_json[CCPM_OAUTH_TOKEN]
+        self.save_state(self._state)
+
+        return phantom.APP_SUCCESS
+
 
     def _process_empty_response(self, response, action_result):
         if response.status_code == 200:
@@ -156,6 +198,80 @@ class ClearpassPolicyManagerConnector(BaseConnector):
 
         return self._process_response(r, action_result)
 
+    def _make_rest_call_oauth2(self, endpoint, action_result, headers=None, params=None, data=None, json=None, method="get"):
+        """ Function that makes the REST call to the app.
+
+        :param endpoint: REST endpoint that needs to appended to the service address
+        :param action_result: object of ActionResult class
+        :param headers: request headers
+        :param params: request parameters
+        :param data: request body
+        :param json: JSON object
+        :param method: GET/POST/PUT/DELETE/PATCH (Default will be GET)
+        :return: status phantom.APP_ERROR/phantom.APP_SUCCESS(along with appropriate message),
+        response obtained by making an API call
+        """
+
+        resp_json = None
+
+        try:
+            request_func = getattr(requests, method)
+        except AttributeError:
+            return RetVal(action_result.set_status(phantom.APP_ERROR, "Invalid method: {0}".format(method)), resp_json)
+
+        try:
+            r = request_func(endpoint, json=json, data=data, headers=headers, params=params)
+        except Exception as e:
+            return action_result.set_status(phantom.APP_ERROR, "Error connecting to server. Details: {0}".format(self._get_error_message_from_exception(e))), resp_json
+
+        return self._process_response(r, action_result)
+    
+    def _make_rest_call_helper_oauth2(self, action_result, endpoint, headers=None, params=None, data=None, json=None, method="get"):
+        """ Function that helps setting REST call to the app.
+
+        :param endpoint: REST endpoint that needs to appended to the service address
+        :param action_result: object of ActionResult class
+        :param headers: request headers
+        :param params: request parameters
+        :param data: request body
+        :param json: JSON object
+        :param method: GET/POST/PUT/DELETE/PATCH (Default will be GET)
+        :return: status phantom.APP_ERROR/phantom.APP_SUCCESS(along with appropriate message),
+        response obtained by making an API call
+        """
+        url = "{0}{1}".format(self._base_url_oauth, endpoint)
+        if headers is None:
+            headers = {}
+
+        if not self._state.get(CCPM_OAUTH_TOKEN):
+            ret_val = self._get_token(action_result)
+
+            if phantom.is_fail(ret_val):
+                return action_result.get_status(), None
+
+        headers.update({
+            'Authorization': 'Bearer {0}'.format(self._access_token)
+        })
+
+        if not headers.get('Content-Type'):
+            headers['Content-Type'] = 'application/json'
+
+        ret_val, resp_json = self._make_rest_call_oauth2(url, action_result, headers, params, data, json, method)
+
+        # If token is expired, generate a new token
+        msg = action_result.get_message()
+        if msg and 'token is invalid' in msg or 'token has expired' in msg or 'ExpiredAuthenticationToken' in msg or 'authorization failed' in msg or 'access denied' in msg:
+            ret_val = self._get_token(action_result)
+
+            headers.update({ 'Authorization': 'Bearer {0}'.format(self._access_token)})
+
+            ret_val, resp_json = self._make_rest_call_oauth2(url, action_result, headers, params, data, json, method)
+
+        if phantom.is_fail(ret_val):
+            return action_result.get_status(), None
+
+        return phantom.APP_SUCCESS, resp_json
+
     def _handle_test_connectivity(self, param):
         # Add an action result object to self (BaseConnector) to represent the action for this param
         action_result = self.add_action_result(ActionResult(dict(param)))
@@ -229,40 +345,21 @@ class ClearpassPolicyManagerConnector(BaseConnector):
 
     def handle_action(self, param):
         ret_val = phantom.APP_SUCCESS
-
-        # Get the action that we are supposed to execute for this App Run
         action_id = self.get_action_identifier()
-
         self.debug_print("action_id", self.get_action_identifier())
 
-        if action_id == 'test_connectivity':
-            ret_val = self._handle_test_connectivity(param)
+        action_mapping = {
+            'test_connectivity': self._handle_test_connectivity,
+            'terminate_session': self._handle_terminate_session
+        }
 
-        elif action_id == 'terminate_session':
-            ret_val = self._handle_terminate_session(param)
+        action_keys = list(action_mapping.keys())
+
+        if action_id in action_keys:
+            action_function = action_mapping[action_id]
+            ret_val = action_function(param)
 
         return ret_val
-
-    def initialize(self):
-        # Load the state in initialize, use it to store data
-        # that needs to be accessed across actions
-        self._state = self.load_state()
-
-        # get the asset config
-        config = self.get_config()
-        """
-        # Access values in asset config by the name
-
-        # Required values can be accessed directly
-        required_config_name = config['required_config_name']
-
-        # Optional values should use the .get() function
-        optional_config_name = config.get('optional_config_name')
-        """
-
-        self._base_url = config.get('base_url')
-
-        return phantom.APP_SUCCESS
 
     def finalize(self):
         # Save the state, this data is saved across actions and app upgrades
