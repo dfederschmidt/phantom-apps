@@ -16,16 +16,15 @@ from clearpasspolicymanager_consts import *
 import requests
 import json
 from bs4 import BeautifulSoup
+from urllib.parse import urlencode
 
 
 class RetVal(tuple):
-
     def __new__(cls, val1, val2=None):
         return tuple.__new__(RetVal, (val1, val2))
 
 
 class ClearpassPolicyManagerConnector(BaseConnector):
-
     def __init__(self):
 
         # Call the BaseConnectors init first
@@ -34,6 +33,8 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         self._state = None
 
         self._base_url = None
+        self._base_url_oauth = None
+
         self._client_id = None
         self._client_secret = None
         self._access_token = None
@@ -47,28 +48,26 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         config = self.get_config()
 
         self._base_url = config[CCPM_JSON_BASE_URL]
+        self._base_url_oauth = config[CCPM_JSON_BASE_URL]
         self._client_id = config[CPPM_JSON_CLIENT_ID]
         self._client_secret = config[CPPM_JSON_CLIENT_SECRET]
-
 
         return phantom.APP_SUCCESS
 
     def _get_token(self, action_result, from_action=False):
         # Retrieves a new Bearer token
-        
+
         payload = {
             "grant_type": "client_credentials",
             "client_id": self._client_id,
-            "client_secret": self._client_secret
+            "client_secret": self._client_secret,
         }
 
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
         url = "{}{}".format(self._base_url, CPPM_OAUTH_TOKEN_ENDPOINT)
-
-        ret_val, resp_json = self._make_rest_call_oauth2(url, action_result, headers=headers, data=payload, method='post')
+        ret_val, resp_json = self._make_rest_call_oauth2(
+            url, action_result, headers=headers, data=payload, method="post"
+        )
 
         if phantom.is_fail(ret_val):
             self._state.pop(CCPM_OAUTH_TOKEN, {})
@@ -80,7 +79,6 @@ class ClearpassPolicyManagerConnector(BaseConnector):
 
         return phantom.APP_SUCCESS
 
-
     def _process_empty_response(self, response, action_result):
         if response.status_code == 200:
             return RetVal(phantom.APP_SUCCESS, {})
@@ -88,7 +86,8 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         return RetVal(
             action_result.set_status(
                 phantom.APP_ERROR, "Empty response and no information in the header"
-            ), None
+            ),
+            None,
         )
 
     def _process_html_response(self, response, action_result):
@@ -98,15 +97,17 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         try:
             soup = BeautifulSoup(response.text, "html.parser")
             error_text = soup.text
-            split_lines = error_text.split('\n')
+            split_lines = error_text.split("\n")
             split_lines = [x.strip() for x in split_lines if x.strip()]
-            error_text = '\n'.join(split_lines)
+            error_text = "\n".join(split_lines)
         except:
             error_text = "Cannot parse error details"
 
-        message = "Status Code: {0}. Data from server:\n{1}\n".format(status_code, error_text)
+        message = "Status Code: {0}. Data from server:\n{1}\n".format(
+            status_code, error_text
+        )
 
-        message = message.replace(u'{', '{{').replace(u'}', '}}')
+        message = message.replace("{", "{{").replace("}", "}}")
         return RetVal(action_result.set_status(phantom.APP_ERROR, message), None)
 
     def _process_json_response(self, r, action_result):
@@ -116,8 +117,10 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         except Exception as e:
             return RetVal(
                 action_result.set_status(
-                    phantom.APP_ERROR, "Unable to parse JSON response. Error: {0}".format(str(e))
-                ), None
+                    phantom.APP_ERROR,
+                    "Unable to parse JSON response. Error: {0}".format(str(e)),
+                ),
+                None,
             )
 
         # Please specify the status codes here
@@ -126,30 +129,29 @@ class ClearpassPolicyManagerConnector(BaseConnector):
 
         # You should process the error returned in the json
         message = "Error from server. Status Code: {0} Data from server: {1}".format(
-            r.status_code,
-            r.text.replace(u'{', '{{').replace(u'}', '}}')
+            r.status_code, r.text.replace("{", "{{").replace("}", "}}")
         )
 
         return RetVal(action_result.set_status(phantom.APP_ERROR, message), None)
 
     def _process_response(self, r, action_result):
         # store the r_text in debug data, it will get dumped in the logs if the action fails
-        if hasattr(action_result, 'add_debug_data'):
-            action_result.add_debug_data({'r_status_code': r.status_code})
-            action_result.add_debug_data({'r_text': r.text})
-            action_result.add_debug_data({'r_headers': r.headers})
+        if hasattr(action_result, "add_debug_data"):
+            action_result.add_debug_data({"r_status_code": r.status_code})
+            action_result.add_debug_data({"r_text": r.text})
+            action_result.add_debug_data({"r_headers": r.headers})
 
         # Process each 'Content-Type' of response separately
 
         # Process a json response
-        if 'json' in r.headers.get('Content-Type', ''):
+        if "json" in r.headers.get("Content-Type", ""):
             return self._process_json_response(r, action_result)
 
         # Process an HTML response, Do this no matter what the api talks.
         # There is a high chance of a PROXY in between phantom and the rest of
         # world, in case of errors, PROXY's return HTML, this function parses
         # the error and adds it to the action_result.
-        if 'html' in r.headers.get('Content-Type', ''):
+        if "html" in r.headers.get("Content-Type", ""):
             return self._process_html_response(r, action_result)
 
         # it's not content-type that is to be parsed, handle an empty response
@@ -158,8 +160,7 @@ class ClearpassPolicyManagerConnector(BaseConnector):
 
         # everything else is actually an error at this point
         message = "Can't process response from server. Status Code: {0} Data from server: {1}".format(
-            r.status_code,
-            r.text.replace('{', '{{').replace('}', '}}')
+            r.status_code, r.text.replace("{", "{{").replace("}", "}}")
         )
 
         return RetVal(action_result.set_status(phantom.APP_ERROR, message), None)
@@ -175,8 +176,10 @@ class ClearpassPolicyManagerConnector(BaseConnector):
             request_func = getattr(requests, method)
         except AttributeError:
             return RetVal(
-                action_result.set_status(phantom.APP_ERROR, "Invalid method: {0}".format(method)),
-                resp_json
+                action_result.set_status(
+                    phantom.APP_ERROR, "Invalid method: {0}".format(method)
+                ),
+                resp_json,
             )
 
         # Create a URL to connect to
@@ -186,20 +189,31 @@ class ClearpassPolicyManagerConnector(BaseConnector):
             r = request_func(
                 url,
                 # auth=(username, password),  # basic authentication
-                verify=config.get('verify_server_cert', False),
+                verify=config.get("verify_server_cert", False),
                 **kwargs
             )
         except Exception as e:
             return RetVal(
                 action_result.set_status(
-                    phantom.APP_ERROR, "Error Connecting to server. Details: {0}".format(str(e))
-                ), resp_json
+                    phantom.APP_ERROR,
+                    "Error Connecting to server. Details: {0}".format(str(e)),
+                ),
+                resp_json,
             )
 
         return self._process_response(r, action_result)
 
-    def _make_rest_call_oauth2(self, endpoint, action_result, headers=None, params=None, data=None, json=None, method="get"):
-        """ Function that makes the REST call to the app.
+    def _make_rest_call_oauth2(
+        self,
+        endpoint,
+        action_result,
+        headers=None,
+        params=None,
+        data=None,
+        json=None,
+        method="get",
+    ):
+        """Function that makes the REST call to the app.
 
         :param endpoint: REST endpoint that needs to appended to the service address
         :param action_result: object of ActionResult class
@@ -217,17 +231,41 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         try:
             request_func = getattr(requests, method)
         except AttributeError:
-            return RetVal(action_result.set_status(phantom.APP_ERROR, "Invalid method: {0}".format(method)), resp_json)
+            return RetVal(
+                action_result.set_status(
+                    phantom.APP_ERROR, "Invalid method: {0}".format(method)
+                ),
+                resp_json,
+            )
 
         try:
-            r = request_func(endpoint, json=json, data=data, headers=headers, params=params)
+            r = request_func(
+                endpoint, json=json, data=data, headers=headers, params=params
+            )
         except Exception as e:
-            return action_result.set_status(phantom.APP_ERROR, "Error connecting to server. Details: {0}".format(self._get_error_message_from_exception(e))), resp_json
+            return (
+                action_result.set_status(
+                    phantom.APP_ERROR,
+                    "Error connecting to server. Details: {0}".format(
+                        self._get_error_message_from_exception(e)
+                    ),
+                ),
+                resp_json,
+            )
 
         return self._process_response(r, action_result)
-    
-    def _make_rest_call_helper_oauth2(self, action_result, endpoint, headers=None, params=None, data=None, json=None, method="get"):
-        """ Function that helps setting REST call to the app.
+
+    def _make_rest_call_helper_oauth2(
+        self,
+        action_result,
+        endpoint,
+        headers=None,
+        params=None,
+        data=None,
+        json=None,
+        method="get",
+    ):
+        """Function that helps setting REST call to the app.
 
         :param endpoint: REST endpoint that needs to appended to the service address
         :param action_result: object of ActionResult class
@@ -243,29 +281,38 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         if headers is None:
             headers = {}
 
-        if not self._state.get(CCPM_OAUTH_TOKEN):
+        if not self._access_token:
             ret_val = self._get_token(action_result)
 
             if phantom.is_fail(ret_val):
                 return action_result.get_status(), None
 
-        headers.update({
-            'Authorization': 'Bearer {0}'.format(self._access_token)
-        })
+        headers.update({"Authorization": "Bearer {0}".format(self._access_token)})
 
-        if not headers.get('Content-Type'):
-            headers['Content-Type'] = 'application/json'
+        if not headers.get("Content-Type"):
+            headers["Content-Type"] = "application/json"
 
-        ret_val, resp_json = self._make_rest_call_oauth2(url, action_result, headers, params, data, json, method)
+        ret_val, resp_json = self._make_rest_call_oauth2(
+            url, action_result, headers, params, data, json, method
+        )
 
         # If token is expired, generate a new token
         msg = action_result.get_message()
-        if msg and 'token is invalid' in msg or 'token has expired' in msg or 'ExpiredAuthenticationToken' in msg or 'authorization failed' in msg or 'access denied' in msg:
+        if (
+            msg
+            and "token is invalid" in msg
+            or "token has expired" in msg
+            or "ExpiredAuthenticationToken" in msg
+            or "authorization failed" in msg
+            or "access denied" in msg
+        ):
             ret_val = self._get_token(action_result)
 
-            headers.update({ 'Authorization': 'Bearer {0}'.format(self._access_token)})
+            headers.update({"Authorization": "Bearer {0}".format(self._access_token)})
 
-            ret_val, resp_json = self._make_rest_call_oauth2(url, action_result, headers, params, data, json, method)
+            ret_val, resp_json = self._make_rest_call_oauth2(
+                url, action_result, headers, params, data, json, method
+            )
 
         if phantom.is_fail(ret_val):
             return action_result.get_status(), None
@@ -276,34 +323,29 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         # Add an action result object to self (BaseConnector) to represent the action for this param
         action_result = self.add_action_result(ActionResult(dict(param)))
 
-        # NOTE: test connectivity does _NOT_ take any parameters
-        # i.e. the param dictionary passed to this handler will be empty.
-        # Also typically it does not add any data into an action_result either.
-        # The status and progress messages are more important.
-
-        self.save_progress("Connecting to endpoint")
-        # make rest call
-        ret_val, response = self._make_rest_call(
-            '/endpoint', action_result, params=None, headers=None
+        self.save_progress(
+            "Connecting to endpoint, getting information about supplied access token"
         )
 
+        ret_val, resp_json = self._make_rest_call_helper_oauth2(
+            action_result, CPPM_OAUTH_ME_ENDPOINT
+        )
         if phantom.is_fail(ret_val):
-            # the call to the 3rd party device or service failed, action result should contain all the error details
-            # for now the return is commented out, but after implementation, return from here
-            self.save_progress("Test Connectivity Failed.")
-            # return action_result.get_status()
+            self.save_progress(CPPM_ERR_CONNECTIVITY_TEST)
+            return phantom.APP_ERROR
 
-        # Return success
-        # self.save_progress("Test Connectivity Passed")
-        # return action_result.set_status(phantom.APP_SUCCESS)
+        self.save_progress("Test connectivity passed")
 
-        # For now return Error with a message, in case of success we don't set the message, but use the summary
-        return action_result.set_status(phantom.APP_ERROR, "Action not yet implemented")
+        return action_result.set_status(
+            phantom.APP_SUCCESS, CPPM_SUCC_CONNECTIVITY_TEST
+        )
 
     def _handle_terminate_session(self, param):
         # Implement the handler here
         # use self.save_progress(...) to send progress messages back to the platform
-        self.save_progress("In action handler for: {0}".format(self.get_action_identifier()))
+        self.save_progress(
+            "In action handler for: {0}".format(self.get_action_identifier())
+        )
 
         # Add an action result object to self (BaseConnector) to represent the action for this param
         action_result = self.add_action_result(ActionResult(dict(param)))
@@ -311,37 +353,108 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         # Access action parameters passed in the 'param' dictionary
 
         # Required values can be accessed directly
-        macaddress = param['macaddress']
+        macaddress = param["macaddress"]
 
-        # Optional values should use the .get() function
-        # optional_parameter = param.get('optional_parameter', 'default_value')
+        session_filter = {"mac_address": macaddress}
 
-        # make rest call
-        ret_val, response = self._make_rest_call(
-            '/endpoint', action_result, params=None, headers=None
+        params = {"filter": json.dumps(session_filter)}
+
+        ret_val, resp_json = self._make_rest_call_helper_oauth2(
+            action_result, CPPM_SESSIONS_ENDPOINT, params=params
         )
-
         if phantom.is_fail(ret_val):
-            # the call to the 3rd party device or service failed, action result should contain all the error details
-            # for now the return is commented out, but after implementation, return from here
-            # return action_result.get_status()
-            pass
+            self.save_progress(CPPM_ERR_TERMINATE_SESSION_QUERY_SESSIONS)
+            return phantom.APP_ERROR
 
-        # Now post process the data,  uncomment code as you deem fit
+        sessions = resp_json["_embedded"]["items"]
 
-        # Add the response into the data section
-        action_result.add_data(response)
+        result = {"num_sessions": len(sessions), "responses": []}
 
-        # Add a dictionary that is made up of the most important values from data into the summary
-        # summary = action_result.update_summary({})
-        # summary['num_data'] = len(action_result['data'])
+        for session in sessions:
+            payload = {"id": session["id"], "confirm_disconnect": True}
+            endpoint = CPPM_DISCONNECT_SESSION_ENDPOINT.format(session["id"])
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            ret_val, resp_json = self._make_rest_call_helper_oauth2(
+                action_result, endpoint, headers=headers, json=payload, method="post"
+            )
+            if phantom.is_fail(ret_val):
+                self.save_progress(CPPM_ERR_TERMINATE_SESSION_DISCONNECT_SESSION)
+                return phantom.APP_ERROR
+            result["responses"].append(resp_json)
 
-        # Return success, no need to set the message, only the status
-        # BaseConnector will create a textual message based off of the summary dictionary
-        # return action_result.set_status(phantom.APP_SUCCESS)
+        self.save_progress("Disconnected all active sessions")
 
-        # For now return Error with a message, in case of success we don't set the message, but use the summary
-        return action_result.set_status(phantom.APP_ERROR, "Action not yet implemented")
+        action_result.add_data(result)
+        return action_result.set_status(phantom.APP_SUCCESS)
+
+    def _handle_update_endpoint_mac(self, param):
+        self.save_progress(
+            "In action handler for: {0}".format(self.get_action_identifier())
+        )
+        action_result = self.add_action_result(ActionResult(dict(param)))
+
+        macaddress = param["macaddress"]
+        attributes = param.get("attributes_json")
+        status = param.get("status")
+
+        payload = {
+            "mac_address": macaddress,
+        }
+
+        if status:
+            payload.update({"status": status})
+        if attributes:
+            try:
+                parsed_attributes = json.loads(attributes)
+                payload.update({"attributes": parsed_attributes})
+            except Exception:
+                self.save_progress(CPPM_ERR_ATTRIBUTES_JSON_PARSE)
+                return phantom.APP_ERROR
+
+        headers = {
+            "Content-Type": "application/json"
+        }
+        endpoint = CPPM_ENDPOINT_MAC_ENDPOINT.format(macaddress)
+        ret_val, resp_json = self._make_rest_call_helper_oauth2(
+            action_result, endpoint, headers=headers, json=payload, method="patch"
+        )
+        if phantom.is_fail(ret_val):
+            self.save_progress(CPPM_ERR_TERMINATE_SESSION_DISCONNECT_SESSION)
+            return phantom.APP_ERROR
+
+        action_result.add_data(resp_json)
+
+        self.save_progress("Successfully updated endpoint by mac")
+
+        return action_result.set_status(phantom.APP_SUCCESS)
+
+    def _handle_get_endpoint_mac(self, param):
+        self.save_progress(
+            "In action handler for: {0}".format(self.get_action_identifier())
+        )
+        action_result = self.add_action_result(ActionResult(dict(param)))
+
+        macaddress = param["macaddress"]
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        endpoint = CPPM_ENDPOINT_MAC_ENDPOINT.format(macaddress)
+        ret_val, resp_json = self._make_rest_call_helper_oauth2(
+            action_result, endpoint, headers=headers, method="get"
+        )
+        if phantom.is_fail(ret_val):
+            self.save_progress(CPPM_ERR_GET_ENDPOINT)
+            return phantom.APP_ERROR
+
+        action_result.add_data(resp_json)
+
+        self.save_progress("Successfully retrieved endpoint by mac")
+
+        return action_result.set_status(phantom.APP_SUCCESS)
 
     def handle_action(self, param):
         ret_val = phantom.APP_SUCCESS
@@ -349,8 +462,10 @@ class ClearpassPolicyManagerConnector(BaseConnector):
         self.debug_print("action_id", self.get_action_identifier())
 
         action_mapping = {
-            'test_connectivity': self._handle_test_connectivity,
-            'terminate_session': self._handle_terminate_session
+            "test_connectivity": self._handle_test_connectivity,
+            "terminate_session": self._handle_terminate_session,
+            "update_endpoint_mac": self._handle_update_endpoint_mac,
+            "get_endpoint_mac": self._handle_get_endpoint_mac
         }
 
         action_keys = list(action_mapping.keys())
@@ -375,9 +490,9 @@ def main():
 
     argparser = argparse.ArgumentParser()
 
-    argparser.add_argument('input_test_json', help='Input Test JSON file')
-    argparser.add_argument('-u', '--username', help='username', required=False)
-    argparser.add_argument('-p', '--password', help='password', required=False)
+    argparser.add_argument("input_test_json", help="Input Test JSON file")
+    argparser.add_argument("-u", "--username", help="username", required=False)
+    argparser.add_argument("-p", "--password", help="password", required=False)
 
     args = argparser.parse_args()
     session_id = None
@@ -389,28 +504,31 @@ def main():
 
         # User specified a username but not a password, so ask
         import getpass
+
         password = getpass.getpass("Password: ")
 
     if username and password:
         try:
-            login_url = ClearpassPolicyManagerConnector._get_phantom_base_url() + '/login'
+            login_url = (
+                ClearpassPolicyManagerConnector._get_phantom_base_url() + "/login"
+            )
 
             print("Accessing the Login page")
             r = requests.get(login_url, verify=False)
-            csrftoken = r.cookies['csrftoken']
+            csrftoken = r.cookies["csrftoken"]
 
             data = dict()
-            data['username'] = username
-            data['password'] = password
-            data['csrfmiddlewaretoken'] = csrftoken
+            data["username"] = username
+            data["password"] = password
+            data["csrfmiddlewaretoken"] = csrftoken
 
             headers = dict()
-            headers['Cookie'] = 'csrftoken=' + csrftoken
-            headers['Referer'] = login_url
+            headers["Cookie"] = "csrftoken=" + csrftoken
+            headers["Referer"] = login_url
 
             print("Logging into Platform to get the session id")
             r2 = requests.post(login_url, verify=False, data=data, headers=headers)
-            session_id = r2.cookies['sessionid']
+            session_id = r2.cookies["sessionid"]
         except Exception as e:
             print("Unable to get session id from the platform. Error: " + str(e))
             exit(1)
@@ -424,8 +542,8 @@ def main():
         connector.print_progress_message = True
 
         if session_id is not None:
-            in_json['user_session_token'] = session_id
-            connector._set_csrf_info(csrftoken, headers['Referer'])
+            in_json["user_session_token"] = session_id
+            connector._set_csrf_info(csrftoken, headers["Referer"])
 
         ret_val = connector._handle_action(json.dumps(in_json), None)
         print(json.dumps(json.loads(ret_val), indent=4))
@@ -433,5 +551,5 @@ def main():
     exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

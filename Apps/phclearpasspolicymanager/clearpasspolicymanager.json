@@ -111,6 +111,127 @@
                 "type": "table"
             },
             "versions": "EQ(*)"
+        },
+        {
+            "action": "update endpoint mac",
+            "identifier": "update_endpoint_mac",
+            "description": "Updates a device given it's MAC address",
+            "verbose": "",
+            "type": "contain",
+            "read_only": false,
+            "parameters": {
+                "macaddress": {
+                    "description": "MAC address of device to update",
+                    "data_type": "string",
+                    "required": true,
+                    "primary": true,
+                    "contains": [
+                        "mac address"
+                    ],
+                    "value_list": [],
+                    "default": "",
+                    "order": 0
+                },
+                "status": {
+                    "description": "Status",
+                    "data_type": "string",
+                    "required": false,
+                    "value_list": ["Known", "Unknown", "Disabled"],
+                    "order": 1
+                },
+                "attributes_json": {
+                    "description": "JSON dictionary of attributes to set on the endpoint",
+                    "data_type": "string",
+                    "required": false,
+                    "order": 2
+                }
+            },
+            "output": [
+                {
+                    "data_path": "action_result.parameter.macaddress",
+                    "data_type": "string",
+                    "contains": [
+                        "mac address"
+                    ],
+                    "column_name": "macaddress",
+                    "column_order": 0
+                },
+                {
+                    "data_path": "action_result.status",
+                    "data_type": "string",
+                    "column_name": "status",
+                    "column_order": 1
+                },
+                {
+                    "data_path": "action_result.message",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "summary.total_objects",
+                    "data_type": "numeric"
+                },
+                {
+                    "data_path": "summary.total_objects_successful",
+                    "data_type": "numeric"
+                }
+            ],
+            "render": {
+                "type": "table"
+            },
+            "versions": "EQ(*)"
+        },
+        {
+            "action": "get endpoint mac",
+            "identifier": "get_endpoint_mac",
+            "description": "Retrieves device information given it's MAC address",
+            "verbose": "",
+            "type": "contain",
+            "read_only": false,
+            "parameters": {
+                "macaddress": {
+                    "description": "MAC address of device to update",
+                    "data_type": "string",
+                    "required": true,
+                    "primary": true,
+                    "contains": [
+                        "mac address"
+                    ],
+                    "order": 0
+                }
+            },
+            "output": [
+                {
+                    "data_path": "action_result.parameter.macaddress",
+                    "data_type": "string",
+                    "contains": [
+                        "mac address"
+                    ],
+                    "column_name": "macaddress",
+                    "column_order": 0
+                },
+                {
+                    "data_path": "action_result.status",
+                    "data_type": "string",
+                    "column_name": "status",
+                    "column_order": 1
+                },
+                {
+                    "data_path": "action_result.message",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "summary.total_objects",
+                    "data_type": "numeric"
+                },
+                {
+                    "data_path": "summary.total_objects_successful",
+                    "data_type": "numeric"
+                }
+            ],
+            "render": {
+                "type": "table"
+            },
+            "versions": "EQ(*)"
         }
     ]
 }
