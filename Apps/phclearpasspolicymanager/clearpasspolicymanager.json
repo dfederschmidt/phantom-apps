@@ -1,0 +1,104 @@
+{
+    "appid": "3882a327-5ef0-4e91-9575-e1c8d96d67e2",
+    "name": "ClearPass Policy Manager",
+    "description": "This app supports various investigative, containment and generic actions on ClearPass Policy Manager.",
+    "type": "network device",
+    "product_vendor": "Aruba",
+    "logo": "clearpasspolicymanager.svg",
+    "logo_dark": "clearpasspolicymanager_dark.svg",
+    "product_name": "ClearPass Policy Manager",
+    "python_version": "3",
+    "product_version_regex": ".*",
+    "publisher": "Splunk Community",
+    "license": "Copyright (c) Splunk Community, 2021",
+    "app_version": "1.0.0",
+    "utctime_updated": "2021-02-22T09:58:50.834638Z",
+    "package_name": "phantom_clearpasspolicymanager",
+    "main_module": "clearpasspolicymanager_connector.py",
+    "min_phantom_version": "4.9.39220",
+    "app_wizard_version": "1.0.0",
+    "configuration": {
+        "client_id": {
+            "description": "Client ID",
+            "data_type": "string",
+            "required": true,
+            "value_list": [],
+            "default": "",
+            "order": 0
+        },
+        "client_secret": {
+            "description": "Client Secret",
+            "data_type": "password",
+            "required": true,
+            "order": 1
+        }
+    },
+    "actions": [
+        {
+            "action": "test connectivity",
+            "identifier": "test_connectivity",
+            "description": "Validate the asset configuration for connectivity using supplied configuration",
+            "verbose": "",
+            "type": "test",
+            "read_only": true,
+            "parameters": {},
+            "output": [],
+            "versions": "EQ(*)"
+        },
+        {
+            "action": "terminate session",
+            "identifier": "terminate_session",
+            "description": "Terminate sessions",
+            "verbose": "",
+            "type": "contain",
+            "read_only": false,
+            "parameters": {
+                "macaddress": {
+                    "description": "MAC address of device to terminate sessions of",
+                    "data_type": "string",
+                    "required": true,
+                    "primary": true,
+                    "contains": [
+                        "mac address"
+                    ],
+                    "value_list": [],
+                    "default": "",
+                    "order": 0
+                }
+            },
+            "output": [
+                {
+                    "data_path": "action_result.parameter.macaddress",
+                    "data_type": "string",
+                    "contains": [
+                        "mac address"
+                    ],
+                    "column_name": "macaddress",
+                    "column_order": 0
+                },
+                {
+                    "data_path": "action_result.status",
+                    "data_type": "string",
+                    "column_name": "status",
+                    "column_order": 1
+                },
+                {
+                    "data_path": "action_result.message",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "summary.total_objects",
+                    "data_type": "numeric"
+                },
+                {
+                    "data_path": "summary.total_objects_successful",
+                    "data_type": "numeric"
+                }
+            ],
+            "render": {
+                "type": "table"
+            },
+            "versions": "EQ(*)"
+        }
+    ]
+}
