@@ -422,12 +422,12 @@ class ClearpassPolicyManagerConnector(BaseConnector):
             action_result, endpoint, headers=headers, json=payload, method="patch"
         )
         if phantom.is_fail(ret_val):
-            self.save_progress(CPPM_ERR_TERMINATE_SESSION_DISCONNECT_SESSION)
+            self.save_progress(CPPM_ERR_UPDATE_ENDPOINT)
             return phantom.APP_ERROR
 
         action_result.add_data(resp_json)
 
-        self.save_progress("Successfully updated endpoint by mac")
+        self.save_progress(CPPM_SUCC_UPDATE_ENDPOINT)
 
         return action_result.set_status(phantom.APP_SUCCESS)
 
@@ -452,7 +452,7 @@ class ClearpassPolicyManagerConnector(BaseConnector):
 
         action_result.add_data(resp_json)
 
-        self.save_progress("Successfully retrieved endpoint by mac")
+        self.save_progress(CPPM_SUCC_GET_ENDPOINT)
 
         return action_result.set_status(phantom.APP_SUCCESS)
 

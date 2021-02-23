@@ -54,7 +54,8 @@
             "type": "test",
             "read_only": true,
             "parameters": {},
-            "output": [],
+            "output": [
+            ],
             "versions": "EQ(*)"
         },
         {
@@ -93,6 +94,26 @@
                     "data_type": "string",
                     "column_name": "status",
                     "column_order": 1
+                },
+                {
+                    "data_path": "action_result.data",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.responses.*.error",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.responses.*.message",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.num_sessions",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.summary",
+                    "data_type": "string"
                 },
                 {
                     "data_path": "action_result.message",
@@ -157,13 +178,49 @@
                     "column_order": 0
                 },
                 {
-                    "data_path": "action_result.status",
+                    "data_path": "action_result.parameter.status",
                     "data_type": "string",
-                    "column_name": "status",
+                    "column_name": "endpoint_status",
                     "column_order": 1
                 },
                 {
+                    "data_path": "action_result.parameter.attributes_json",
+                    "data_type": "string",
+                    "column_name": "attributes",
+                    "column_order": 2
+                },
+                {
+                    "data_path": "action_result.status",
+                    "data_type": "string",
+                    "column_name": "status",
+                    "column_order": 3
+                },
+                {
                     "data_path": "action_result.message",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.status",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.attributes",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.description",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.mac_address",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.summary",
                     "data_type": "string"
                 },
                 {
@@ -217,6 +274,26 @@
                 },
                 {
                     "data_path": "action_result.message",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.status",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.attributes",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.description",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.mac_address",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.summary",
                     "data_type": "string"
                 },
                 {
