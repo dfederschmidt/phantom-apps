@@ -16,7 +16,6 @@ from clearpasspolicymanager_consts import *
 import requests
 import json
 from bs4 import BeautifulSoup
-from urllib.parse import urlencode
 
 
 class RetVal(tuple):
