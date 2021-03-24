@@ -1742,6 +1742,148 @@
             "versions": "EQ(*)"
         },
         {
+            "action": "update incident",
+            "description": "Update one or more fields of a specific incident. Missing fields are ignored",
+            "type": "generic",
+            "identifier": "update_incident",
+            "read_only": false,
+            "parameters": {
+                "incident_id": {
+                    "description": "Incident ID to be investigated",
+                    "data_type": "numeric",
+                    "required": true,
+                    "primary": true,
+                    "contains": [
+                        "cortex incident id"
+                    ],
+                    "order": 0
+                },
+                "email": {
+                    "description": "Updated email address of the incident assignee. Pass 'none' to unassign the incident",
+                    "data_type": "string",
+                    "required": false,
+                    "order": 1
+                },
+                "severity": {
+                    "description": "Administrator-defined severity",
+                    "data_type": "string",
+                    "required": false,
+                    "value_list": [
+                        "high",
+                        "medium",
+                        "low",
+                        "unassigned"
+                    ],
+                    "order": 2
+                },
+                "status": {
+                    "description": "Updated incident status",
+                    "data_type": "string",
+                    "required": false,
+                    "value_list": [
+                        "NEW",
+                        "UNDER_INVESTIGATION",
+                        "RESOLVED_THREAT_HANDLED",
+                        "RESOLVED_KNOWN_ISSUE",
+                        "RESOLVED_DUPLICATE",
+                        "RESOLVED_FALSE_POSITIVE",
+                        "RESOLVED_OTHER",
+                        "UNASSIGNED"
+                    ],
+                    "order": 3
+                },
+                "comment": {
+                    "description": "Descriptive comment explaining the incident change",
+                    "data_type": "string",
+                    "required": false,
+                    "order": 4
+                }
+            },
+            "output": [
+                {
+                    "data_path": "action_result.parameter.incident_id",
+                    "data_type": "numeric",
+                    "contains": [
+                        "cortex incident id"
+                    ],
+                    "column_name": "Incident ID",
+                    "column_order": 0
+                },
+                {
+                    "data_path": "action_result.parameter.email",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.parameter.status",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.parameter.severity",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.parameter.comment",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.status",
+                    "data_type": "string",
+                    "column_name": "Status",
+                    "column_order": 1,
+                    "example_values": [
+                        "success",
+                        "failed"
+                    ]
+                },
+                {
+                    "data_path": "action_result.message",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.summary",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.summary.is_malicious",
+                    "data_type": "boolean",
+                    "example_values": [
+                        true,
+                        false
+                    ]
+                },
+                {
+                    "data_path": "action_result.summary.file_name",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.summary.file_sha256",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "summary.total_objects",
+                    "data_type": "numeric",
+                    "example_values": [
+                        1
+                    ]
+                },
+                {
+                    "data_path": "summary.total_objects_successful",
+                    "data_type": "numeric",
+                    "example_values": [
+                        1
+                    ]
+                }
+            ],
+            "render": {
+                "type": "table"
+            },
+            "versions": "EQ(*)"
+        },
+        {
             "action": "get alerts",
             "description": "Get a list of alerts with multiple events",
             "type": "investigate",

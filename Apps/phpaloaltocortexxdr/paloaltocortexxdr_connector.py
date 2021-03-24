@@ -1502,6 +1502,61 @@ class TestConnector(BaseConnector):
         # BaseConnector will create a textual message based off of the summary dictionary
         return action_result.set_status(phantom.APP_SUCCESS)
 
+    def _handle_update_incident(self, param):
+        self.save_progress("In action handler for: {0}".format(self.get_action_identifier()))
+
+        action_result = self.add_action_result(ActionResult(dict(param)))
+
+        # Parameters
+        incident_id = param["incident_id"]
+        
+        ret_val, incident_id = self._validate_integer(action_result, incident_id, INCIDENTID_ACTION_PARAM)
+        if phantom.is_fail(ret_val):
+            return action_result.get_status()
+
+        email = param.get("email")
+        severity = param.get("severity")
+        comment = param.get("comment")
+        status = param.get("status")
+
+        payload = {
+            "request_data": {
+                "incident_id": str(incident_id),
+                "update_data": {}
+            }
+        }
+
+        if email:
+            payload["request_data"]["update_data"]["assigned_user_email"] = email
+        if severity:
+            if severity == "unassigned":
+                severity = "none"
+            payload["request_data"]["update_data"]["manual_severity"] = severity
+        if status:
+            if status == "UNASSIGNED":
+                status = "none"
+            payload["request_data"]["update_data"]["status"] = status
+        if comment:
+            payload["request_data"]["update_data"]["resolve_comment"] = comment
+
+
+        headers = self.authenticationHeaders()
+        ret_val, response = self._make_rest_call(
+            '/incidents/update_incident/', action_result, headers=headers, json=payload
+        )
+
+        if phantom.is_fail(ret_val):
+            return action_result.get_status()
+
+
+        action_result.add_data(response)
+        summary = action_result.update_summary({})
+        summary["incident_id"] = incident_id
+
+
+        return action_result.set_status(phantom.APP_SUCCESS)
+
+
     def handle_action(self, param):
         ret_val = phantom.APP_SUCCESS
 
@@ -1563,6 +1618,9 @@ class TestConnector(BaseConnector):
 
         elif action_id == 'get_alerts':
             ret_val = self._handle_get_alerts(param)
+
+        elif action_id == 'update_incident':
+            ret_val = self._handle_update_incident(param)
 
         return ret_val
 
